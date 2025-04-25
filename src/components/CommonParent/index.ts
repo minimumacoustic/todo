@@ -1,0 +1,1 @@
+export {CommonParent} from './ui/CommonParent';
