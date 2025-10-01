@@ -20,30 +20,9 @@ export function CommonParent() {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const BASE_URL = "http://localhost:8000/api/todos";
-  // const fetchTodos1 = useCallback(
-  //   async (page: number = 1, filter: string = "all") => {
-  //     try {
-  //       let url = `http://localhost:8000/api/todos/?page=${page}`;
+ 
+  let api = createTodoApi(BASE_URL);
 
-  //       // Добавляем параметры фильтрации на сервер
-  //       if (filter === "complete") {
-  //         url += "&status=true";
-  //       } else if (filter === "uncomplete") {
-  //         url += "&status=false";
-  //       }
-
-  //       const response = await axios.get(url);
-  //       const data = response.data;
-  //       setPaginationData(data);
-  //       setTodos(data.todos);
-  //       console.log("aaaaaaaaa")
-  //     } catch (error) {
-  //       console.error("Error fetching todos:", error);
-  //     }
-  //   },
-  //   []
-  // );
-  let api = createTodoApi(BASE_URL)
   const fetchTodos = useCallback(
    async (page: number = 1, filter: string = "all") => {
       try {
