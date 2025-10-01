@@ -1,81 +1,167 @@
-import { useState, useEffect, useLayoutEffect, useRef} from "react"
-import {Form} from '../../Form'
-import { TodoListView } from "../../TodoListView";  
+import { useState, useEffect, useCallback } from "react";
+import { Form } from "../../Form";
+import { TodoListView } from "../../TodoListView";
 import { Buttons } from "../../Buttons";
+import { PaginationData, createTodoApi} from "../../shared/gettodos";
 
-const getInitTodos = () => {
-    const todos = localStorage.getItem("todo");
-    if (!todos) return [];
-    return JSON.parse(todos);
-}
+export function CommonParent() {
+  const [todos, setTodos] = useState<Todo[]>([]);
+  const [buttonState, setButtonState] = useState<
+    "complete" | "uncomplete" | "all"
+  >("all");
+  const [buttonCounter, setButtonCounter] = useState(true);
+  const [paginationData, setPaginationData] = useState<PaginationData>({
+    todos: [],
+    has_next: false,
+    has_prev: false,
+    current_page: 1,
+    total_pages: 0,
+    total_items: 0,
+  });
+  const [currentPage, setCurrentPage] = useState(1);
+  const BASE_URL = "http://localhost:8000/api/todos";
+  // const fetchTodos1 = useCallback(
+  //   async (page: number = 1, filter: string = "all") => {
+  //     try {
+  //       let url = `http://localhost:8000/api/todos/?page=${page}`;
 
-export function CommonParent () {
-    const [todos, setTodos] = useState<Todo[]>(getInitTodos);
-    const [buttonState, setButtonState] = useState<"complete" | "uncomplete" | "all">("all")
+  //       // Добавляем параметры фильтрации на сервер
+  //       if (filter === "complete") {
+  //         url += "&status=true";
+  //       } else if (filter === "uncomplete") {
+  //         url += "&status=false";
+  //       }
 
-    useEffect(() => {
-        localStorage.setItem("todo", JSON.stringify(todos))
-    }, [todos])
+  //       const response = await axios.get(url);
+  //       const data = response.data;
+  //       setPaginationData(data);
+  //       setTodos(data.todos);
+  //       console.log("aaaaaaaaa")
+  //     } catch (error) {
+  //       console.error("Error fetching todos:", error);
+  //     }
+  //   },
+  //   []
+  // );
+  let api = createTodoApi(BASE_URL)
+  const fetchTodos = useCallback(
+   async (page: number = 1, filter: string = "all") => {
+      try {
+        const response = await api.fetchTodos(page, filter);
+        const data = await response.data;
+        setPaginationData(data);
+        setTodos(data.todos);
+      } catch (error) {
+        console.error("Error fetching todos:", error);
+      }
+  }, [])//без колбека лог летит бесконечно, почему? 
+  useEffect(() => {
+    fetchTodos(currentPage, buttonState);
+  }, [currentPage, buttonState, fetchTodos]);
 
-    // useLayoutEffect(()=>{
-    //     setTodos(JSON.parse(localStorage.getItem("todo") ?? '[]'))
-    // },[])
+  // useLayoutEffect(()=>{
+  //     setTodos(JSON.parse(localStorage.getItem("todo") ?? '[]'))
+  // },[])
 
-    const changeToDoStatus = (id:string, isDone: boolean) => {
-        setTodos(todos.map((todo)=> {
-            if (todo.id === id) {
-                todo.isDone = isDone
-            } return todo
-        }))
-    };
-
-    const deleteToDo = (id:string) => {  
-        setTodos(todos.filter((todo)=> todo.id!==id))
+  const changeToDoStatus = async (id: string, isDone: boolean) => {
+    try {
+      await api.updateStatus(id, isDone)
+      fetchTodos(currentPage, buttonState);
+    } catch (error) {
+      console.error("Error updating todo:", error);
     }
+  };
 
-    const onSubmit = (str: string) => {
-        setTodos([...todos, {name:str, isDone:false, id: crypto.randomUUID()}])
+  const deleteToDo = async (id: string) => {
+    try {
+      await api.deleteTodo(id);
+      fetchTodos(currentPage, buttonState);
+    } catch (error) {
+      console.error("Error deleting todo:", error);
     }
-      
-    const completeAllTasks = () => {
-        setTodos(todos.map((todo)=> {   
-            todo.isDone = true;
-            console.log(todo)
-            return todo
-        }
-        ))
-    }
+  };
 
-    const deleteAllToDo = () => {
-        setTodos([])
+  const onSubmit = async (str: string) => {
+    try {
+      await api.createTodo(str);
+      setCurrentPage(1);
+      fetchTodos(1, buttonState);
+    } catch (error) {
+      console.error("Error creating todo:", error);
     }
+  };
 
-    const showCompleteToDo = () => {
-        setButtonState("complete")
+  const completeAllTasks = async () => {
+    try {
+      if (buttonCounter) {
+        await api.completeAll();
+      } else {
+        await api.uncompleteAll();
+      }
+      setButtonCounter(!buttonCounter);
+      fetchTodos(currentPage, buttonState);
+    } catch (error) {
+      console.error("Error completing all tasks:", error);
     }
+  };
 
-    const showUncompleteToDo = () => {
-        setButtonState("uncomplete")
+  const deleteAllToDo = async () => {
+    try {
+      await api.deleteAll();
+      setTodos([]);
+      setCurrentPage(1);
+    } catch (error) {
+      console.error("Error deleting all todos:", error);
     }
+  };
 
-    const showAll = () => {
-        setButtonState("all")
+  const showCompleteToDo = () => {
+    setButtonState("complete");
+    setCurrentPage(1);
+  };
+
+  const showUncompleteToDo = () => {
+    setButtonState("uncomplete");
+    setCurrentPage(1);
+  };
+
+  const showAll = () => {
+    setButtonState("all");
+    setCurrentPage(1);
+  };
+
+  const editToDo = async (id: string, name: string) => {
+    try {
+      await api.editTodo(id, name);
+      fetchTodos(currentPage, buttonState);
+    } catch (error) {
+      console.error("Error updating todo:", error);
     }
+  };
 
-    const editToDo = (id:string, name:string) => {
-        setTodos(todos.map((todo)=> {
-            if (todo.id === id) {
-               if (name !== "") {todo.name = name} 
-               else return todo
-            } return todo
-        }))
-    }
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
-    return (
-        <>
-        <Form bbb={onSubmit} />
-        <Buttons  completeAllToDo={completeAllTasks} deleteAll={deleteAllToDo} showCmp={showCompleteToDo} showUncmp={showUncompleteToDo} showAll={showAll} />
-        <TodoListView aaaa={todos} buttonFilter={buttonState} completeTodo={changeToDoStatus} deleteToDo={deleteToDo} editToDo={editToDo}/>
-        </>
-    )
+  return (
+    <>
+      <Form addTodo={onSubmit} />
+      <Buttons
+        completeAllToDo={completeAllTasks}
+        deleteAll={deleteAllToDo}
+        showCmp={showCompleteToDo}
+        showUncmp={showUncompleteToDo}
+        showAll={showAll}
+      />
+      <TodoListView
+        todos={todos}
+        buttonFilter={buttonState}
+        completeTodo={changeToDoStatus}
+        deleteToDo={deleteToDo}
+        editToDo={editToDo}
+        paginationData={paginationData}
+        onPageChange={handlePageChange}
+      />
+    </>
+  );
 }
