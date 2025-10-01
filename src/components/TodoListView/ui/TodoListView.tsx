@@ -1,86 +1,115 @@
-import React, { ChangeEvent, useState, useCallback } from "react";
-import { Paginator } from '../../Paginator'
+import React, { ChangeEvent, useState,} from "react";
+import { Paginator } from "../../Paginator";
 
-interface ListViewProps{
-    aaaa: Todo[];
-    buttonFilter: "complete" | "uncomplete" | "all";
-    completeTodo(id:string, isDone: boolean): void;
-    deleteToDo(id:string): void;
-    editToDo(id:string, input:string): void;
+
+// отметить все, перейти к отмеченным, отметить все, все ломается
+
+interface ListViewProps {
+  todos: Todo[];
+  buttonFilter: "complete" | "uncomplete" | "all";
+  completeTodo(id: string, isDone: boolean): void;
+  deleteToDo(id: string): void;
+  editToDo(id: string, input: string): void;
+  paginationData: {
+    has_next: boolean;
+    has_prev: boolean;
+    current_page: number;
+    total_pages: number;
+    total_items: number;
+  };
+  onPageChange: (page: number) => void;
 }
 
 
-export function TodoListView ({aaaa, buttonFilter, completeTodo, deleteToDo, editToDo}:ListViewProps) {
-    
-    const TODO_PER_PAGE = 5;
+export function TodoListView({
+  todos,
+  buttonFilter,
+  completeTodo,
+  deleteToDo,
+  editToDo,
+  paginationData,
+  onPageChange
+}: ListViewProps) {
 
-    const getTotalPageCount = (rowCount: number): number => Math.ceil(rowCount / TODO_PER_PAGE);
+  
+ 
+  const [edit, setEdit] = useState("");
+  const [input, setInput] = useState("");
+ 
+
+  const toggleToDo = (id: string, event: ChangeEvent<HTMLInputElement>) => {
+    completeTodo(id, event.target.checked);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
+    setInput(e.target.value);
+  };
 
 
-    const [edit, setEdit] = useState("")
-    const [input, setInput] = useState("")
-    const [page, setPage] = useState(1)
-
-    const toggleToDo = (id:string, event:ChangeEvent<HTMLInputElement>)=>{
-        completeTodo(id, event.target.checked)
+  const handleNextPageClick = () => {
+    if (paginationData.has_next) {
+      onPageChange(paginationData.current_page + 1);
     }
+  };
 
-    const handleChange = (e:React.ChangeEvent<HTMLInputElement>):void => {
-        setInput(e.target.value)
+  const handlePrevPageClick = () => {
+    if (paginationData.has_prev) {
+      onPageChange(paginationData.current_page - 1);
     }
+  };
 
-    if (aaaa.length === 0) {
-        return <h1>Список пуст</h1>
-    }
 
-    const paginatedTodos = aaaa.slice(
-        (page - 1) * TODO_PER_PAGE,
-        page * TODO_PER_PAGE
-      );
+  if (todos.length === 0) {
+    return <h1>Список пуст</h1>;
+  }
 
-    const handleNextPageClick = useCallback(() => {
-        const current = page;
-        const next = current + 1;
-        const total = aaaa ? getTotalPageCount(aaaa.length) : current;
-    
-        setPage(next <= total ? next : current);
-      }, [page, aaaa]);
-    
-      const handlePrevPageClick = useCallback(() => {
-        const current = page;
-        const prev = current - 1;
-    
-        setPage(prev > 0 ? prev : current);
-      }, [page]);
 
-    return (
-        <>
-        {aaaa && paginatedTodos.filter((item) => {
-            if (buttonFilter === "complete") 
-                return item.isDone === true
-            else if (buttonFilter === "uncomplete")
-                return item.isDone === false 
-            else return aaaa
-        }).map((todo)=> (
-            <div onDoubleClick={()=>setEdit(todo.id) } key={todo.id}>
-                {edit===todo.id && <form onSubmit={(e)=>{
-                    e.preventDefault();
-                    editToDo(todo.id, input);
-                    setEdit("");
-                }}><input type="text" onChange={handleChange}></input></form> }
-                <input type="checkbox" checked={todo.isDone} onChange={(event) => toggleToDo(todo.id, event)} />
-                <button onClick={()=> deleteToDo(todo.id)}>X</button>
-                {todo.isDone ? <s>{todo.name}</s>
-                : todo.name}                
-                </div>
-        ))}
+  return (
+    <>
+      {todos.map((todo) => (
+        <div onDoubleClick={() => setEdit(todo.id)} key={todo.id}>
+          {edit === todo.id && (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                editToDo(todo.id, input);
+                setEdit("");
+              }}
+            >
+              <input
+                ref={(ref) => ref?.focus()}
+                type="text"
+                onChange={handleChange}
+                onBlur={() => {
+                  setEdit("");
+                }}
+              ></input>
+            </form>
+          )}
+          <input
+            type="checkbox"
+            checked={todo.status}
+            onChange={(event) => toggleToDo(todo.id, event)}
+          />
+          <button onClick={() => deleteToDo(todo.id)}>X</button>
+          {todo.status ? <s>{todo.title}</s> : todo.title}
+        </div>
+      ))}
 
-        {aaaa.length > 0 && (<Paginator onNextPageClick={handleNextPageClick} onPrevPageClick={handlePrevPageClick} 
-        disable={{
-            left: page === 1,
-            right: page === getTotalPageCount(aaaa.length),
+      {todos.length > 0 && (
+        <Paginator
+          onNextPageClick={handleNextPageClick}
+          onPrevPageClick={handlePrevPageClick}
+          disable={{
+            left: !paginationData.has_prev,
+            right: !paginationData.has_next,
           }}
-        nav={{ current: page, total: getTotalPageCount(aaaa.length) }}  />)}
-        </>
-    )
+          nav={{
+            current: paginationData.current_page,
+            total: paginationData.total_pages,
+          }}
+        />
+      )}
+    </>
+  )
 }

@@ -1,6 +1,6 @@
 interface Todo {
-    name: string;
+    title: string;
     id: string;
-    isDone: boolean;
+    status: boolean;
 }
 
